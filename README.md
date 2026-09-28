@@ -5,7 +5,7 @@
 [![Backend](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-green)](https://nodejs.org/)
 [![Database](https://img.shields.io/badge/Database-MongoDB%20%2B%20Mongoose-blue)](https://www.mongodb.com/)
 [![Mobile](https://img.shields.io/badge/Mobile-React%20Native-61DAFB)](https://reactnative.dev)
-[![Architecture](https://img.shields.io/badge/Architecture-Atomic%20Transactions-orange)]()
+[![Architecture](https://img.shields.io/badge/Architecture-Atomic%20Updates-orange)]()
 
 ---
 
@@ -18,14 +18,14 @@
 
 ## 📱 What is this module?
 
-This project implements the **Competition Details Screen** for the Feedants app as requested in the technical assessment. It is not just a UI clone—it is a fully functional, database-driven feature that manages competition availability, user registration state, capacity counting, and date-based lifecycle events.
+This project implements the **Competition Details Screen** for the Feedants app as requested in the technical assessment. It is not just a UI clone—it is a functional, database-driven Competition Details module that manages competition availability, user registration state, capacity counting, and date-based lifecycle events.
 
 **Key capabilities you can test in the app right now:**
 1. **Dynamic Registration State:** Starts as "Register Now" with 19/20 spots. Tap it to see it instantly transition to "Registered / Upload Submission" with 20/20 spots.
 2. **Race-Condition Proof:** The backend strictly rejects double-registrations or over-bookings using an atomic database query.
 3. **Live Countdown Timer:** Calculates time remaining strictly from the backend's `registrationClose` deadline.
 4. **Interactive UI Tabs:** Dynamic state management for "About", "Judging", and "Rules".
-5. **Native Share API:** Tap "Refer Now" or "Copy Link" to trigger the device's native share sheet.
+5. **Native Sharing:** Tap "Refer Now" or "Copy Link" to invoke the device's native sharing functionality.
 
 ---
 
@@ -50,9 +50,9 @@ This project implements the **Competition Details Screen** for the Feedants app 
                        │ Mongoose
 ┌──────────────────────▼──────────────────────────────┐
 │               MongoDB Database                       │
-│  Competitions Table (spots, dates, rewards, info)   │
-│  Users Table (mock user data)                       │
-│  Registrations Table (Compound Unique Index)        │
+│  Competitions Collection (spots, dates, rewards, info)│
+│  Users Collection (mock user data)                   │
+│  Registrations Collection (Compound Unique Index)    │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -109,12 +109,12 @@ npx react-native run-android
 ## 🧠 Assessment Requirements: Documentation
 
 ### 1. Important Assumptions
-*   **Single User Scope:** Authentication was not requested, so I hardcoded a single `MOCK_USER_ID` in the frontend API service to simulate an active user session.
+*   **Single User Scope:** Authentication was outside the scope of the assignment, so a `MOCK_USER_ID` is used to simulate the currently authenticated user. The backend still uses this user identifier to determine registration state and enforce duplicate-registration rules.
 *   **Visual Scope vs Functional Scope:** Features core to the business logic (registration, capacity, countdowns, tabs, and sharing) were made fully functional. Purely navigational/decorative elements (like the bottom navigation bar or video playback buttons) were built as UI mockups to keep the scope strictly focused on the assignment.
 
 ### 2. Major Technical Decisions
 *   **Atomic Capacity Management:** Instead of writing complex, multi-step queries that could fail under heavy load, I utilized MongoDB's `findOneAndUpdate` with an `$expr` pipeline.
-    *   *Why?* This ensures that the check (`bookedSpots < totalSpots` AND `currentDate < registrationClose`) happens **simultaneously** with the `$inc` spot increment. It completely prevents race conditions if 1,000 users tap "Register" at the exact same millisecond for the last remaining spot.
+    *   *Why?* This ensures that the capacity check (`bookedSpots < totalSpots` and `currentDate < registrationClose`) and the `$inc` operation are performed atomically by MongoDB. This prevents concurrent requests from overbooking the available capacity.
 *   **Compound Unique Indexes:** I enforced a unique database index on `{ competition: 1, user: 1 }` in the Registration model to guarantee no user can ever accidentally register twice at the database level.
 *   **Server-Driven State:** The React Native frontend maintains almost zero hardcoded business logic. Text labels ("Register Now" vs "Upload Submission") and button states are derived entirely from the server response (`userState.isRegistered`), ensuring data accuracy across app reloads.
 
