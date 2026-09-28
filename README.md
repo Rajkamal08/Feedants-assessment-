@@ -1,63 +1,131 @@
-# Feedants Technical Assignment - Competition Details
+# 🏆 Feedants — Competition Details Screen
 
-This repository contains the full-stack implementation of the Feedants Competition Details screen. It is built as a complete, functional feature backed by a real database, precisely matching the provided design.
+> **A highly robust, production-ready full-stack module for competition lifecycle management and atomic registrations.**
 
-## Project Structure
-- `mobile/`: React Native CLI application containing the frontend UI.
-- `server/`: Node.js + Express + MongoDB backend serving the competition API.
-
-## Requirements
-- Node.js (v18+)
-- MongoDB running locally (default: `mongodb://localhost:27017`)
-- React Native CLI & Android/iOS development environment
-
-## How to Run
-
-### 1. Backend Server
-```bash
-cd server
-npm install
-npm run seed     # Populates DB with exact screenshot reference data and registers the mock user
-npm run dev      # Starts Express server on http://localhost:5000
-```
-*Note: Make sure your local MongoDB instance is running before starting the server.*
-
-### 2. Mobile App (Android)
-```bash
-cd mobile
-npm install
-npx react-native run-android
-```
-*(Note: If testing on a physical device instead of an emulator, you may need to update `API_URL` in `mobile/src/services/api.js` to point to your computer's local IP address instead of `10.0.2.2`).*
+[![Backend](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-green)](https://nodejs.org/)
+[![Database](https://img.shields.io/badge/Database-MongoDB%20%2B%20Mongoose-blue)](https://www.mongodb.com/)
+[![Mobile](https://img.shields.io/badge/Mobile-React%20Native-61DAFB)](https://reactnative.dev)
+[![Architecture](https://img.shields.io/badge/Architecture-Atomic%20Transactions-orange)]()
 
 ---
 
-## Architecture & Technical Decisions
+## 🔗 Live Demos & Links
 
-### 1. Dynamic Data & Seeding
-To adhere strictly to the requirement of not hardcoding the competition data in the React Native app, I created a seed script (`npm run seed`) that populates MongoDB with the exact textual, numerical, and array data from the reference screenshot. The React Native app performs a standard `fetch` upon load to construct the UI dynamically.
+- **🎥 Screen Recording Demo:** `[Insert link to your video here]`
+- **💻 GitHub Repository:** [https://github.com/Rajkamal08/Feedants-assessment-](https://github.com/Rajkamal08/Feedants-assessment-)
 
-### 2. Concurrency and Data Consistency (Atomic Updates)
-To handle the edge case where thousands of concurrent users might attempt to register for the last remaining spot simultaneously, the backend handles registration via an **atomic MongoDB operation**. 
-Using `findOneAndUpdate` with a query constraint (`$expr: { $lt: ["$capacity.bookedSpots", "$capacity.totalSpots"] }`) combined with an `$inc` update, the system guarantees that a spot is secured safely and atomically before writing the user registration record, eliminating race conditions entirely. (MongoDB Session Transactions were considered but omitted to ensure seamless execution on default standalone local MongoDB databases).
+---
 
-### 3. Countdown Logic Offloaded to Client
-Instead of the backend repeatedly calculating "time remaining", the API returns the authoritative `registrationClose` ISO timestamp. A custom React Native hook (`useCountdown.js`) calculates the remaining time every second natively on the device. This greatly minimizes API calls and ensures a fluid UI.
+## 📱 What is this module?
 
-### 4. Database Modelling
-I separated the data into three collections: `Competition`, `User`, and `Registration`. 
-A compound unique index exists on the `Registration` schema (`{ competition, user }`) to guarantee a user cannot register for the same competition twice at the database level.
+This project implements the **Competition Details Screen** for the Feedants app as requested in the technical assessment. It is not just a UI clone—it is a fully functional, database-driven feature that manages competition availability, user registration state, capacity counting, and date-based lifecycle events.
 
-## Trade-offs & Assumptions
+**Key capabilities you can test in the app right now:**
+1. **Dynamic Registration State:** Starts as "Register Now" with 19/20 spots. Tap it to see it instantly transition to "Registered / Upload Submission" with 20/20 spots.
+2. **Race-Condition Proof:** The backend strictly rejects double-registrations or over-bookings using an atomic database query.
+3. **Live Countdown Timer:** Calculates time remaining strictly from the backend's `registrationClose` deadline.
+4. **Interactive UI Tabs:** Dynamic state management for "About", "Judging", and "Rules".
+5. **Native Share API:** Tap "Refer Now" or "Copy Link" to trigger the device's native share sheet.
 
-1. **Authentication Mocking:** Since building a full authentication flow was outside the scope of rendering a single screen, I assumed the existence of a logged-in user. The `MOCK_USER_ID` is passed from the React Native app to the backend to determine if the active user is already registered (which toggles the "Registered" badge and button state).
-2. **Icons:** To ensure exact accuracy with the design without forcing the reviewer to deal with native linking issues associated with heavy external vector icon libraries, I used remote PNGs from a standard icon CDN to replicate the UI's modern iconography perfectly.
-3. **Visual Mockups vs Functional Routing:** Elements like the video play buttons, "Copy Link", and the bottom App Navigation bar were built to accurately represent the design pixel-for-pixel, but their `onPress` routing logic was intentionally left blank as there are no other screens to navigate to in this isolated assignment.
-4. **Single-File Component:** For ease of review in a small technical assignment, the entire screen and its sub-sections were built inside `CompetitionDetailsScreen.jsx`. 
+---
 
-## Production Improvements
-If deploying this feature to a large-scale production app, I would improve the following:
-*   **WebSockets/Server-Sent Events:** For a live competition with limited spots, I would implement WebSockets to push the live `bookedSpots` count to the client instantly, rather than relying solely on the static fetch on component mount.
-*   **Component Modularity:** Break `CompetitionDetailsScreen.jsx` down into smaller, highly reusable components (e.g., `CompetitionCard.jsx`, `JudgeProfile.jsx`, `WinnersCarousel.jsx`).
-*   **State Management:** Integrate Redux Toolkit or Zustand for global state caching, especially to persist the user's registration state across the entire app.
-*   **Skeleton Loading:** Replace the standard `ActivityIndicator` with a styled skeleton loader that visually mimics the competition card for a smoother perceived loading experience.
+## 🏗️ Architecture
+
+```text
+┌─────────────────────────────────────────────────────┐
+│              React Native Mobile App                 │
+│  UI fetches competition & user state on mount       │
+│  Renders UI (Countdown, Capacity, Tabs, Button)     │
+│  Sends POST request on "Register Now" tap           │
+└──────────────────────┬──────────────────────────────┘
+                       │ HTTP / JSON
+┌──────────────────────▼──────────────────────────────┐
+│         Node.js + Express.js Backend                 │
+│                                                      │
+│  GET  /api/competitions/:id?userId=...              │
+│  POST /api/competitions/:id/register                │
+│                                                      │
+│  * Handles Date validation & atomic spot updates     │
+└──────────────────────┬──────────────────────────────┘
+                       │ Mongoose
+┌──────────────────────▼──────────────────────────────┐
+│               MongoDB Database                       │
+│  Competitions Table (spots, dates, rewards, info)   │
+│  Users Table (mock user data)                       │
+│  Registrations Table (Compound Unique Index)        │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔌 API Reference
+
+### Competition Endpoints
+```text
+GET  /api/competitions/:id?userId=:userId
+→ Returns complete competition details, capacity, dates, and whether the specific user is already registered.
+
+POST /api/competitions/:id/register
+→ Body: { "userId": "..." }
+→ Executes an atomic check on the database. If capacity is available AND the registration deadline hasn't passed, increments bookedSpots by 1 and creates a unique Registration record.
+```
+
+---
+
+## 🛠️ Local Development & Environment Setup
+
+### Required Environment Variables
+Create a `.env` file inside the `/server` directory:
+```env
+PORT=5000
+MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/feedants?retryWrites=true&w=majority
+```
+
+### 1. Run the Backend & Seed the Database
+```bash
+cd server
+npm install
+
+# Seed the database to exactly match the design mockup (19/20 spots available)
+npm run seed
+
+# Start the server
+npm run dev
+# Runs on http://localhost:5000
+```
+
+### 2. Run the Mobile App
+```bash
+cd mobile
+npm install
+
+# (Android Emulator must be running)
+npx react-native run-android
+```
+*(Note: The mobile app connects to `10.0.2.2:5000` by default to securely route localhost traffic from the Android emulator).*
+
+---
+
+## 🧠 Assessment Requirements: Documentation
+
+### 1. Important Assumptions
+*   **Single User Scope:** Authentication was not requested, so I hardcoded a single `MOCK_USER_ID` in the frontend API service to simulate an active user session.
+*   **Visual Scope vs Functional Scope:** Features core to the business logic (registration, capacity, countdowns, tabs, and sharing) were made fully functional. Purely navigational/decorative elements (like the bottom navigation bar or video playback buttons) were built as UI mockups to keep the scope strictly focused on the assignment.
+
+### 2. Major Technical Decisions
+*   **Atomic Capacity Management:** Instead of writing complex, multi-step queries that could fail under heavy load, I utilized MongoDB's `findOneAndUpdate` with an `$expr` pipeline.
+    *   *Why?* This ensures that the check (`bookedSpots < totalSpots` AND `currentDate < registrationClose`) happens **simultaneously** with the `$inc` spot increment. It completely prevents race conditions if 1,000 users tap "Register" at the exact same millisecond for the last remaining spot.
+*   **Compound Unique Indexes:** I enforced a unique database index on `{ competition: 1, user: 1 }` in the Registration model to guarantee no user can ever accidentally register twice at the database level.
+*   **Server-Driven State:** The React Native frontend maintains almost zero hardcoded business logic. Text labels ("Register Now" vs "Upload Submission") and button states are derived entirely from the server response (`userState.isRegistered`), ensuring data accuracy across app reloads.
+
+### 3. Trade-offs Considered
+*   **Transactions vs Atomic Updates:** While MongoDB sessions and transactions are excellent for rollback safety, they require a MongoDB Replica Set. To ensure this project is easy to run and test on any local or free-tier database, I opted for an **Atomic Update pattern** (`$expr` + `$inc`) which is equally race-condition-proof but vastly more portable.
+*   **One Monolithic Screen vs Micro-components:** For a production app, the `CompetitionDetailsScreen.jsx` file would be heavily abstracted into separate folders (e.g., `<JudgeProfile />`, `<WinnersCarousel />`). For the sake of this assignment, I kept them hierarchically grouped in one primary file so evaluators can review the exact UI-to-State mapping without hunting through 20 different files. 
+
+### 4. Future Production Improvements
+*   **Real-time WebSockets:** Currently, the remaining spots update when the user fetches the page. In production, I would attach a Socket.io listener so users staring at the page can see the spots drop live.
+*   **Pagination & Lazy Loading:** If a competition has thousands of previous winners or heavy judge introductory videos, I would implement FlatList optimizations and lazy load the images.
+*   **Global State Management:** I would implement Redux Toolkit or React Query to cache the API response and prevent layout shift during the loading phase.
+
+---
+*Developed for Feedants by Rajkamal*
